@@ -494,19 +494,24 @@ if "chat_history"  not in st.session_state: st.session_state.chat_history  = []
 if "files_loaded"  not in st.session_state: st.session_state.files_loaded  = []
 if "gemini_ready"  not in st.session_state: st.session_state.gemini_ready  = False
 
-# ── API Key في الباك اند — اليوزر مش بيشوفه ──
-# ضع الـ Key هنا مرة واحدة، أو استخدم st.secrets للأمان على Streamlit Cloud
-GEMINI_API_KEY = st.secrets.get("GEMINI_API_KEY", "YOUR_API_KEY_HERE")
+# ── إعداد API Key ──
+    st.markdown("### 🔑 Gemini API Key")
+    api_key = st.text_input("أدخل الـ API Key", type="password",
+                             placeholder="AIzaSy...")
 
-if not st.session_state.gemini_ready:
-    try:
-        genai.configure(api_key=GEMINI_API_KEY)
-        _ = genai.GenerativeModel("gemini-3.1-flash-lite-preview")
-        st.session_state.gemini_ready = True
-        st.session_state.api_key = GEMINI_API_KEY
-    except Exception as e:
-        st.error(f"❌ خطأ في الاتصال بـ Gemini: {str(e)[:80]}")
-        st.stop()
+    if api_key:
+        try:
+            genai.configure(api_key=api_key)
+            # اختبار الاتصال
+            _ = genai.GenerativeModel("gemini-2.5-flash")
+            st.markdown('<p class="status-ok">✅ الاتصال ناجح</p>', unsafe_allow_html=True)
+            st.session_state.gemini_ready = True
+            st.session_state.api_key = api_key
+        except Exception as e:
+            st.markdown(f'<p class="status-err">❌ خطأ: {str(e)[:60]}</p>', unsafe_allow_html=True)
+            st.session_state.gemini_ready = False
+
+    st.markdown("---")
 
 
 # ══════════════════════════════════════════════════════════
