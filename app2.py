@@ -501,7 +501,7 @@ GEMINI_API_KEY = st.secrets.get("GEMINI_API_KEY", "YOUR_API_KEY_HERE")
 if not st.session_state.gemini_ready:
     try:
         genai.configure(api_key=GEMINI_API_KEY)
-        _ = genai.GenerativeModel("gemini-1.5-flash")
+        _ = genai.GenerativeModel("gemini-3.1-flash-lite-preview")
         st.session_state.gemini_ready = True
         st.session_state.api_key = GEMINI_API_KEY
     except Exception as e:
@@ -536,7 +536,7 @@ with st.sidebar:
     if uploaded_files and st.session_state.gemini_ready:
         if st.button("🚀 معالجة الملفات"):
             # ── نموذج الـ Embedding ──
-            EMBED_MODEL = "models/gemini-embedding-001"
+            EMBED_MODEL = "text-embedding-005"
             progress = st.progress(0, text="جاري المعالجة...")
             all_chunks = []
 
@@ -739,8 +739,8 @@ if final_question:
 
     # ── إعداد نماذج Gemini ──
     genai.configure(api_key=st.session_state.api_key)
-    EMBED_MODEL  = "models/embedding-001"
-    GEMINI_MODEL = genai.GenerativeModel("gemini-1.5-flash")
+    EMBED_MODEL  = "text-embedding-005"
+    GEMINI_MODEL = genai.GenerativeModel("gemini-3.1-flash-lite-preview")
 
     with st.spinner("🔍 جاري البحث في ملفاتك..."):
 
