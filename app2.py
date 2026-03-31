@@ -393,7 +393,19 @@ if "files_loaded"  not in st.session_state: st.session_state.files_loaded  = []
 if "gemini_ready"  not in st.session_state: st.session_state.gemini_ready  = False
 if "api_key"       not in st.session_state: st.session_state.api_key       = ""
 
+# ── API Key في الباك اند — اليوزر مش بيشوفه ──
+# ضع الـ Key هنا مرة واحدة، أو استخدم st.secrets للأمان على Streamlit Cloud
+GEMINI_API_KEY = st.secrets.get("GEMINI_API_KEY", "")
 
+if not st.session_state.gemini_ready:
+    try:
+        genai.configure(api_key=GEMINI_API_KEY)
+        _ = genai.GenerativeModel("gemini-3-flash")
+        st.session_state.gemini_ready = True
+        st.session_state.api_key = GEMINI_API_KEY
+    except Exception as e:
+        st.error(f"❌ خطأ في الاتصال بـ Gemini: {str(e)[:80]}")
+        st.stop()
 # ══════════════════════════════════════════════════════════
 #  🎨 الواجهة — Sidebar
 # ══════════════════════════════════════════════════════════
