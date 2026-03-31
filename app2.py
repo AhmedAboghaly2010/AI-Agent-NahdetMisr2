@@ -494,6 +494,20 @@ if "chat_history"  not in st.session_state: st.session_state.chat_history  = []
 if "files_loaded"  not in st.session_state: st.session_state.files_loaded  = []
 if "gemini_ready"  not in st.session_state: st.session_state.gemini_ready  = False
 
+# ── API Key في الباك اند — اليوزر مش بيشوفه ──
+# ضع الـ Key هنا مرة واحدة، أو استخدم st.secrets للأمان على Streamlit Cloud
+GEMINI_API_KEY = st.secrets.get("GEMINI_API_KEY", "AIzaSyACL6_QE0u-58NyKYkvxO0sshk1SGkyF9M")
+
+if not st.session_state.gemini_ready:
+    try:
+        genai.configure(api_key=GEMINI_API_KEY)
+        _ = genai.GenerativeModel("gemini-1.5-flash")
+        st.session_state.gemini_ready = True
+        st.session_state.api_key = GEMINI_API_KEY
+    except Exception as e:
+        st.error(f"❌ خطأ في الاتصال بـ Gemini: {str(e)[:80]}")
+        st.stop()
+
 
 # ══════════════════════════════════════════════════════════
 #  🎨 الواجهة — Sidebar
@@ -507,23 +521,6 @@ with st.sidebar:
       <div style="font-size:0.75rem; color:#64748b;">نظام الأسئلة الذكي</div>
     </div>
     """, unsafe_allow_html=True)
-
-    # ── إعداد API Key ──
-    st.markdown("### 🔑 Gemini API Key")
-    api_key = st.text_input("أدخل الـ API Key", type="password",
-                             placeholder="AIzaSy...")
-
-    if api_key:
-        try:
-            genai.configure(api_key=api_key)
-            # اختبار الاتصال
-            _ = genai.GenerativeModel("gemini-2.5-flash")
-            st.markdown('<p class="status-ok">✅ الاتصال ناجح</p>', unsafe_allow_html=True)
-            st.session_state.gemini_ready = True
-            st.session_state.api_key = api_key
-        except Exception as e:
-            st.markdown(f'<p class="status-err">❌ خطأ: {str(e)[:60]}</p>', unsafe_allow_html=True)
-            st.session_state.gemini_ready = False
 
     st.markdown("---")
 
@@ -689,6 +686,10 @@ with chat_container:
                         </div>""", unsafe_allow_html=True)
 
 # ── مربع السؤال ──
+# الحيلة: بنستخدم counter عشان نغير الـ key ونفضّي الـ input تلقائياً بعد الإرسال
+if "input_counter" not in st.session_state:
+    st.session_state.input_counter = 0
+
 st.markdown("<br>", unsafe_allow_html=True)
 col_input, col_btn = st.columns([5, 1])
 
@@ -697,7 +698,7 @@ with col_input:
         "سؤالك",
         placeholder="اسأل أي سؤال عن بياناتك...",
         label_visibility="collapsed",
-        key="question_input"
+        key=f"question_input_{st.session_state.input_counter}"
     )
 
 with col_btn:
@@ -784,6 +785,8 @@ if final_question:
         "sources": reranked
     })
 
+    # زوّد الـ counter عشان يفضى مربع السؤال
+    st.session_state.input_counter += 1
     st.rerun()
 
 
