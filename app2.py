@@ -759,7 +759,7 @@ if final_question:
             EMBED_MODEL,
             top_k=8          # نسترجع 8 chunks أولاً
         )
-
+        time.sleep(2)
         # STEP 3 — Reranker: أعد ترتيب الـ Chunks واختار أفضل 3
         status_box.info("③ جاري إعادة الترتيب (Reranker)...")
         reranked = rerank_chunks(final_question, candidate_chunks, GEMINI_MODEL, top_k=3)
