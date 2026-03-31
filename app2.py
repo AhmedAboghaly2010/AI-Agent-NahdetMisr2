@@ -489,7 +489,7 @@ with st.sidebar:
                         embedding = call_gemini_with_retry(lambda: get_embedding(chunk["content"], EMBED_MODEL))
                         chunk["embedding"] = embedding.tolist()
                         all_chunks.append(chunk)
-                        time.sleep(2)  # انتظار بسيط للتأكد من استقرار الحصة
+                        time.sleep(1)  # انتظار بسيط للتأكد من استقرار الحصة
                     except Exception as e:
                         st.warning(f"⚠️ تخطي chunk: {str(e)[:40]}")
 
