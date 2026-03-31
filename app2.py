@@ -17,6 +17,29 @@ import numpy as np               # عمليات رياضية على الـ Vecto
 import io, os, json, time, re
 from collections import Counter
 
+
+# ══════════════════════════════════════════════════════════
+#  🔄 Retry helper — يعيد المحاولة عند تجاوز الحصة
+# ══════════════════════════════════════════════════════════
+
+def call_gemini_with_retry(func, max_retries=3, base_wait=10):
+    """
+    يُعيد الاستدعاء تلقائياً لو حصل ResourceExhausted (Rate Limit)
+    base_wait: ثواني الانتظار قبل كل إعادة محاولة (يتضاعف تدريجياً)
+    """
+    for attempt in range(max_retries):
+        try:
+            return func()
+        except Exception as e:
+            err = str(e)
+            is_quota = "ResourceExhausted" in err or "quota" in err.lower() or "429" in err
+            if is_quota and attempt < max_retries - 1:
+                wait_time = base_wait * (2 ** attempt)   # 10s → 20s → 40s
+                st.warning(f"⏳ تجاوز الحصة — انتظار {wait_time} ثانية ثم إعادة المحاولة ({attempt+1}/{max_retries-1})...")
+                time.sleep(wait_time)
+            else:
+                raise   # إذا مش quota error، أو انتهت المحاولات → أطلق الخطأ
+
 # ══════════════════════════════════════════════════════════
 #  إعداد الصفحة
 # ══════════════════════════════════════════════════════════
@@ -248,7 +271,7 @@ def expand_query(question, gemini_model):
 {{"questions": ["السؤال 1", "السؤال 2", "السؤال 3"]}}"""
 
     try:
-        response = gemini_model.generate_content(prompt)
+        response = call_gemini_with_retry(lambda: gemini_model.generate_content(prompt))
         # استخراج الـ JSON من الإجابة
         text = response.text.strip()
         text = re.sub(r"```json|```", "", text).strip()
@@ -311,11 +334,11 @@ def hybrid_search(questions, vector_db, embed_model, top_k=8):
     for q in questions:
         # ── Vector Search ──
         try:
-            q_vec = genai.embed_content(
+            q_vec = call_gemini_with_retry(lambda: genai.embed_content(
                 model=embed_model,
                 content=q,
                 task_type="retrieval_query"
-            )["embedding"]
+            )["embedding"])
             q_vec = np.array(q_vec)
 
             for chunk in vector_db:
@@ -377,7 +400,7 @@ def rerank_chunks(question, chunks, gemini_model, top_k=3):
 {{"ranked": [أرقام مرتبة, مثل: 2, 0, 5, 1, ...]}}"""
 
     try:
-        response = gemini_model.generate_content(prompt)
+        response = call_gemini_with_retry(lambda: gemini_model.generate_content(prompt))
         text = response.text.strip()
         text = re.sub(r"```json|```", "", text).strip()
         data = json.loads(text)
@@ -478,7 +501,7 @@ def generate_answer(question, relevant_chunks, chat_history, gemini_model):
 الإجابة:"""
 
     # ── إرسال لـ Gemini والحصول على الإجابة ──
-    response = gemini_model.generate_content(full_prompt)
+    response = call_gemini_with_retry(lambda: gemini_model.generate_content(full_prompt))
     return response.text
 
 
@@ -493,20 +516,7 @@ if "vector_db"     not in st.session_state: st.session_state.vector_db     = []
 if "chat_history"  not in st.session_state: st.session_state.chat_history  = []
 if "files_loaded"  not in st.session_state: st.session_state.files_loaded  = []
 if "gemini_ready"  not in st.session_state: st.session_state.gemini_ready  = False
-
-# ── API Key في الباك اند — اليوزر مش بيشوفه ──
-# ضع الـ Key هنا مرة واحدة، أو استخدم st.secrets للأمان على Streamlit Cloud
-GEMINI_API_KEY = st.secrets.get("GEMINI_API_KEY", "AIzaSyAqk_ARC5MYIt_KSEEhWmtw97C5Ss_Wu6M")
-
-if not st.session_state.gemini_ready:
-    try:
-        genai.configure(api_key=GEMINI_API_KEY)
-        _ = genai.GenerativeModel("gemini-1.5-flash")
-        st.session_state.gemini_ready = True
-        st.session_state.api_key = GEMINI_API_KEY
-    except Exception as e:
-        st.error(f"❌ خطأ في الاتصال بـ Gemini: {str(e)[:80]}")
-        st.stop()
+if "api_key"       not in st.session_state: st.session_state.api_key       = ""
 
 
 # ══════════════════════════════════════════════════════════
@@ -522,6 +532,64 @@ with st.sidebar:
     </div>
     """, unsafe_allow_html=True)
 
+    # ══════════════════════════════════════════════════════
+    #  🔑 إدخال الـ API Key من الواجهة
+    # ══════════════════════════════════════════════════════
+    st.markdown("### 🔑 Google Gemini API Key")
+    st.markdown(
+        "<div style='font-size:0.78rem; color:#64748b; margin-bottom:8px; direction:rtl;'>"
+        "احصل على مفتاحك من "
+        "<a href='https://aistudio.google.com/app/apikey' target='_blank' "
+        "style='color:#22d3ee;'>Google AI Studio</a>"
+        "</div>",
+        unsafe_allow_html=True
+    )
+
+    api_key_input = st.text_input(
+        "أدخل الـ API Key",
+        type="password",
+        placeholder="AIza...",
+        value=st.session_state.api_key,
+        label_visibility="collapsed",
+        key="api_key_field"
+    )
+
+    if st.button("✅ تفعيل API Key"):
+        if api_key_input and api_key_input.strip():
+            try:
+                genai.configure(api_key=api_key_input.strip())
+                # اختبار بسيط للتحقق من صحة الـ Key
+                test_model = genai.GenerativeModel("gemini-1.5-flash")
+                test_model.generate_content("test")
+                st.session_state.api_key      = api_key_input.strip()
+                st.session_state.gemini_ready = True
+                st.success("✅ تم التفعيل بنجاح!")
+                st.rerun()
+            except Exception as e:
+                st.session_state.gemini_ready = False
+                err_msg = str(e)
+                if "API_KEY_INVALID" in err_msg or "invalid" in err_msg.lower():
+                    st.error("❌ الـ API Key غير صحيح، تحقق منه وأعد المحاولة")
+                elif "ResourceExhausted" in err_msg or "quota" in err_msg.lower():
+                    st.error("❌ تجاوزت حصة الاستخدام — جرب Key آخر أو انتظر")
+                else:
+                    st.error(f"❌ خطأ: {err_msg[:100]}")
+        else:
+            st.warning("⚠️ أدخل الـ API Key أولاً")
+
+    # عرض حالة الاتصال
+    if st.session_state.gemini_ready:
+        masked = st.session_state.api_key[:8] + "..." + st.session_state.api_key[-4:]
+        st.markdown(
+            f"<div class='status-ok'>🟢 متصل — {masked}</div>",
+            unsafe_allow_html=True
+        )
+    else:
+        st.markdown(
+            "<div class='status-err'>🔴 غير متصل — أدخل الـ API Key</div>",
+            unsafe_allow_html=True
+        )
+
     st.markdown("---")
 
     # ── رفع الملفات ──
@@ -536,7 +604,7 @@ with st.sidebar:
     if uploaded_files and st.session_state.gemini_ready:
         if st.button("🚀 معالجة الملفات"):
             # ── نموذج الـ Embedding ──
-            EMBED_MODEL = "models/gemini-embedding-001"
+            EMBED_MODEL = "models/embedding-001"
             progress = st.progress(0, text="جاري المعالجة...")
             all_chunks = []
 
@@ -739,40 +807,59 @@ if final_question:
 
     # ── إعداد نماذج Gemini ──
     genai.configure(api_key=st.session_state.api_key)
-    EMBED_MODEL  = "models/gemini-embedding-001"
-    GEMINI_MODEL = genai.GenerativeModel("gemini-2.0-flash")
+    EMBED_MODEL  = "models/embedding-001"
+    GEMINI_MODEL = genai.GenerativeModel("gemini-1.5-flash")
 
     with st.spinner("🔍 جاري البحث في ملفاتك..."):
 
         # ═══ Pipeline الجديد (4 خطوات) ═══
+        try:
+            # STEP 1 — Query Expansion: وسّع السؤال لـ 3 أسئلة
+            status_box = st.empty()
+            status_box.info("① جاري توسيع السؤال (Query Expansion)...")
+            expanded_questions = expand_query(final_question, GEMINI_MODEL)
 
-        # STEP 1 — Query Expansion: وسّع السؤال لـ 3 أسئلة
-        status_box = st.empty()
-        status_box.info("① جاري توسيع السؤال (Query Expansion)...")
-        expanded_questions = expand_query(final_question, GEMINI_MODEL)
+            # STEP 2 — Hybrid Search: ابحث بـ Vector + Keyword
+            status_box.info(f"② جاري البحث الهجين (Hybrid Search) بـ {len(expanded_questions)} أسئلة...")
+            candidate_chunks = hybrid_search(
+                expanded_questions,
+                st.session_state.vector_db,
+                EMBED_MODEL,
+                top_k=8          # نسترجع 8 chunks أولاً
+            )
 
-        # STEP 2 — Hybrid Search: ابحث بـ Vector + Keyword
-        status_box.info(f"② جاري البحث الهجين (Hybrid Search) بـ {len(expanded_questions)} أسئلة...")
-        candidate_chunks = hybrid_search(
-            expanded_questions,
-            st.session_state.vector_db,
-            EMBED_MODEL,
-            top_k=8          # نسترجع 8 chunks أولاً
-        )
-        time.sleep(2)
-        # STEP 3 — Reranker: أعد ترتيب الـ Chunks واختار أفضل 3
-        status_box.info("③ جاري إعادة الترتيب (Reranker)...")
-        reranked = rerank_chunks(final_question, candidate_chunks, GEMINI_MODEL, top_k=3)
+            # STEP 3 — Reranker: أعد ترتيب الـ Chunks واختار أفضل 3
+            status_box.info("③ جاري إعادة الترتيب (Reranker)...")
+            reranked = rerank_chunks(final_question, candidate_chunks, GEMINI_MODEL, top_k=3)
 
-        # STEP 4 — Context Builder + Generate Answer
-        status_box.info("④ جاري توليد الإجابة...")
-        answer = generate_answer(
-            final_question,
-            reranked,
-            st.session_state.chat_history,
-            GEMINI_MODEL
-        )
-        status_box.empty()   # أخفِ رسائل الحالة
+            # STEP 4 — Context Builder + Generate Answer
+            status_box.info("④ جاري توليد الإجابة...")
+            answer = generate_answer(
+                final_question,
+                reranked,
+                st.session_state.chat_history,
+                GEMINI_MODEL
+            )
+            status_box.empty()   # أخفِ رسائل الحالة
+
+        except Exception as e:
+            status_box.empty()
+            err_msg = str(e)
+            if "ResourceExhausted" in err_msg or "quota" in err_msg.lower() or "429" in err_msg:
+                st.error(
+                    "❌ **تجاوزت حصة الاستخدام (Rate Limit)**\n\n"
+                    "الحلول المقترحة:\n"
+                    "- انتظر دقيقة ثم أعد المحاولة\n"
+                    "- استخدم API Key مختلف\n"
+                    "- تحقق من حصتك على [Google AI Studio](https://aistudio.google.com)"
+                )
+            elif "API_KEY_INVALID" in err_msg or "invalid" in err_msg.lower():
+                st.error("❌ الـ API Key غير صحيح — ادخل Key جديد من الشريط الجانبي")
+                st.session_state.gemini_ready = False
+                st.session_state.api_key = ""
+            else:
+                st.error(f"❌ خطأ غير متوقع: {err_msg[:200]}")
+            st.stop()
 
     st.session_state.chat_history.append({
         "role": "user",
