@@ -740,7 +740,7 @@ if final_question:
     # ── إعداد نماذج Gemini ──
     genai.configure(api_key=st.session_state.api_key)
     EMBED_MODEL  = "models/gemini-embedding-001"
-    GEMINI_MODEL = genai.GenerativeModel("gemini-1.5-flash")
+    GEMINI_MODEL = genai.GenerativeModel("gemini-2.0-flash")
 
     with st.spinner("🔍 جاري البحث في ملفاتك..."):
 
