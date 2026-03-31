@@ -496,7 +496,7 @@ if "gemini_ready"  not in st.session_state: st.session_state.gemini_ready  = Fal
 
 # ── API Key في الباك اند — اليوزر مش بيشوفه ──
 # ضع الـ Key هنا مرة واحدة، أو استخدم st.secrets للأمان على Streamlit Cloud
-GEMINI_API_KEY = st.secrets.get("GEMINI_API_KEY", "AIzaSyACL6_QE0u-58NyKYkvxO0sshk1SGkyF9M")
+GEMINI_API_KEY = st.secrets.get("GEMINI_API_KEY", "AIzaSyAqk_ARC5MYIt_KSEEhWmtw97C5Ss_Wu6M")
 
 if not st.session_state.gemini_ready:
     try:
@@ -739,7 +739,7 @@ if final_question:
 
     # ── إعداد نماذج Gemini ──
     genai.configure(api_key=st.session_state.api_key)
-    EMBED_MODEL  = "models/embedding-001"
+    EMBED_MODEL  = "models/gemini-embedding-001"
     GEMINI_MODEL = genai.GenerativeModel("gemini-1.5-flash")
 
     with st.spinner("🔍 جاري البحث في ملفاتك..."):
