@@ -549,7 +549,7 @@ with st.sidebar:
     if uploaded_files and st.session_state.gemini_ready:
         if st.button("🚀 معالجة الملفات"):
             # ── نموذج الـ Embedding ──
-            EMBED_MODEL = "models/text-embedding-005"
+            EMBED_MODEL = "models/gemini-embedding-001"
             progress = st.progress(0, text="جاري المعالجة...")
             all_chunks = []
 
@@ -752,7 +752,7 @@ if final_question:
 
     # ── إعداد نماذج Gemini ──
     genai.configure(api_key=st.session_state.api_key)
-    EMBED_MODEL  = "models/text-embedding-005"
+    EMBED_MODEL  = "models/gemini-embedding-001"
     GEMINI_MODEL = genai.GenerativeModel("gemini-1.5-flash")
 
     with st.spinner("🔍 جاري البحث في ملفاتك..."):
