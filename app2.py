@@ -635,7 +635,7 @@ st.markdown("""
   <div style="font-size:1.8rem; font-weight:900;
     background:linear-gradient(90deg,#6366f1,#22d3ee);
     -webkit-background-clip:text; -webkit-text-fill-color:transparent;">
-    🤖 المساعد الذكي لبياناتك
+    🤖 المساعد الذكي لمؤسسة نهضة مصر
   </div>
   <div style="color:#64748b; font-size:0.9rem; margin-top:6px;">
     ارفع ملفاتك ← اسأل أي سؤال ← احصل على إجابة مباشرة من بياناتك
