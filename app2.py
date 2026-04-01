@@ -493,25 +493,7 @@ if "vector_db"     not in st.session_state: st.session_state.vector_db     = []
 if "chat_history"  not in st.session_state: st.session_state.chat_history  = []
 if "files_loaded"  not in st.session_state: st.session_state.files_loaded  = []
 if "gemini_ready"  not in st.session_state: st.session_state.gemini_ready  = False
-
-# ── إعداد API Key ──
-    st.markdown("### 🔑 Gemini API Key")
-    api_key = st.text_input("أدخل الـ API Key", type="password",
-                             placeholder="AIzaSy...")
-
-    if api_key:
-        try:
-            genai.configure(api_key=api_key)
-            # اختبار الاتصال
-            _ = genai.GenerativeModel("gemini-2.5-flash")
-            st.markdown('<p class="status-ok">✅ الاتصال ناجح</p>', unsafe_allow_html=True)
-            st.session_state.gemini_ready = True
-            st.session_state.api_key = api_key
-        except Exception as e:
-            st.markdown(f'<p class="status-err">❌ خطأ: {str(e)[:60]}</p>', unsafe_allow_html=True)
-            st.session_state.gemini_ready = False
-
-    st.markdown("---")
+if "api_key"       not in st.session_state: st.session_state.api_key       = ""
 
 
 # ══════════════════════════════════════════════════════════
@@ -527,6 +509,32 @@ with st.sidebar:
     </div>
     """, unsafe_allow_html=True)
 
+    # ── إدخال الـ API Key يدوياً ──────────────────────────
+    # السبب: مش بنحط الـ Key في الكود عشان لما ترفع على GitHub
+    # ميظهرش للعامة — المستخدم بيكتبه هنا وبيتحفظ في الـ Session فقط
+    st.markdown("### 🔑 Gemini API Key")
+    api_key_input = st.text_input(
+        "أدخل الـ API Key",
+        type="password",           # مخفي كـ *** عشان محدش يشوفه
+        placeholder="AIzaSy...",
+        value=st.session_state.api_key,
+        help="مش بيتحفظ في الكود — بيتمسح لما تقفل المتصفح"
+    )
+
+    if api_key_input and api_key_input != st.session_state.api_key:
+        # لو دخل key جديد — جرّب الاتصال
+        try:
+            genai.configure(api_key=api_key_input)
+            _ = genai.GenerativeModel("gemini-1.5-flash")
+            st.session_state.api_key      = api_key_input
+            st.session_state.gemini_ready = True
+            st.markdown('<p class="status-ok">✅ الاتصال ناجح</p>', unsafe_allow_html=True)
+        except Exception as e:
+            st.session_state.gemini_ready = False
+            st.markdown(f'<p class="status-err">❌ خطأ: {str(e)[:60]}</p>', unsafe_allow_html=True)
+    elif st.session_state.gemini_ready:
+        st.markdown('<p class="status-ok">✅ متصل</p>', unsafe_allow_html=True)
+
     st.markdown("---")
 
     # ── رفع الملفات ──
@@ -541,7 +549,7 @@ with st.sidebar:
     if uploaded_files and st.session_state.gemini_ready:
         if st.button("🚀 معالجة الملفات"):
             # ── نموذج الـ Embedding ──
-            EMBED_MODEL = "text-embedding-005"
+            EMBED_MODEL = "models/embedding-001"
             progress = st.progress(0, text="جاري المعالجة...")
             all_chunks = []
 
@@ -735,7 +743,7 @@ final_question = question if send and question else quick_q
 if final_question:
     # ── التحقق من الشروط ──
     if not st.session_state.gemini_ready:
-        st.error("❌ أدخل الـ API Key أولاً")
+        st.error("❌ أدخل الـ API Key في القائمة الجانبية أولاً")
         st.stop()
 
     if not st.session_state.vector_db:
@@ -744,8 +752,8 @@ if final_question:
 
     # ── إعداد نماذج Gemini ──
     genai.configure(api_key=st.session_state.api_key)
-    EMBED_MODEL  = "text-embedding-005"
-    GEMINI_MODEL = genai.GenerativeModel("gemini-3.1-flash-lite-preview")
+    EMBED_MODEL  = "models/embedding-001"
+    GEMINI_MODEL = genai.GenerativeModel("gemini-1.5-flash")
 
     with st.spinner("🔍 جاري البحث في ملفاتك..."):
 
