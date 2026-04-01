@@ -525,7 +525,7 @@ with st.sidebar:
         # لو دخل key جديد — جرّب الاتصال
         try:
             genai.configure(api_key=api_key_input)
-            _ = genai.GenerativeModel("gemini-1.5-flash")
+            _ = genai.GenerativeModel("gemini-2.5-flash")
             st.session_state.api_key      = api_key_input
             st.session_state.gemini_ready = True
             st.markdown('<p class="status-ok">✅ الاتصال ناجح</p>', unsafe_allow_html=True)
@@ -753,7 +753,7 @@ if final_question:
     # ── إعداد نماذج Gemini ──
     genai.configure(api_key=st.session_state.api_key)
     EMBED_MODEL  = "models/gemini-embedding-001"
-    GEMINI_MODEL = genai.GenerativeModel("gemini-1.5-flash")
+    GEMINI_MODEL = genai.GenerativeModel("gemini-2.5-flash")
 
     with st.spinner("🔍 جاري البحث في ملفاتك..."):
 
